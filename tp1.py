@@ -1,82 +1,88 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Wed Mar 12 23:40:38 2025
 
+@author: iremo
+"""
 
-
-
+#%%
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-fs = 20000000  # 20MHz (Más puntos, más suave)
-f0 = 10000  # Frecuencia base
 
-N = int(fs / f0)  # Muestras por ciclo
+fs = 1000 # Hz
+N = fs
 
-# Aumento del tiempo total mostrado (duplicando el número de ciclos)
-t = np.linspace(0, 20 * (N - 1) / fs, 20* N)  # *20 Para visualizar más ciclos
-pasofrec = fs / N  # Intervalo de frecuencias
+pasof = fs / N # Hz
 
-def mi_funcion_sen(vmax, dc, ff, ph, fs, t):
-    """
-    Esto genera una señal senoidal parametrizable cuyos parámetros son:
-    vmax: Amplitud máxima de la señal.
-    dc: Valor medio de la señal.
-    ff: Frecuencia de la señal en Hz.
-    ph: Fase de la señal en radianes.
-    fs: Frecuencia de muestreo en Hz.
-    t: Vector de tiempos predefinido.
-    La señal devuelve x, vector de valores de la función de tamaño Nx1
-    """
-    x = vmax * np.sin(2 * np.pi * ff * t + ph) + dc
-    return x.reshape(-1, 1)
-    #Genera una señal senoidal, el reshape asegura que el vector x sea Nx1.
+Ts = 1/fs #Paso de tiempo
+Tiempoint = N * Ts # Inervalo total de tiempo
 
-# def funcion_cuadrada(amplitud,
-#     """
-#    Genera una señal cuadrada de parámetros:
-#     amplitud: Amplitud de la señal.
-#     dc: Valor medio
-#     ff: Frecuencia [Hz]
-   
-#     t: Vector de tiempos predefinido.
-#     La señal devuelve xcuadrada, vector de valores de la función de tamaño Nx1
-#     """
-#     xcuadrada = np.sign(x)
-#     return tt, xx
 
-# Parámetros generales
-frecuencias = [500, 999, 1001, 2001]  # Frecuencias solicitadas
-#duracion_pulso = 0.001  # Duración del pulso [s]
+ff = 1 # Hz
+Vmax = 1
+ph =0
+nn = N
+dc = 0
 
-# Generación de señales
-fig, axs = plt.subplots(2, 1, figsize=(10, 12))
+def mi_funcion_sen(Vmax, dc, ff, ph, nn, fs):
+    tt = np.arange(start = 0, stop = Tiempoint, step = Ts)
+    xx = Vmax * np.sin( 2 * np.pi * ff * tt ) + dc
+    return tt, xx
 
-# Gráfico de Señales senoidales
-for f in frecuencias:
-    x = mi_funcion_sen(vmax=1, dc=0, ff=f, ph=0, fs=fs, t=t)
-    axs[0].plot(t, x, label=f"f = {f} Hz")
+tt, xx = mi_funcion_sen(Vmax, dc, ff, ph, nn, fs)
+plt.plot(tt, xx, label="1 Hz")
+#%%
+#otras frecuencias
+ff2=500
+ff3=999
+ff4=1001
+ff5=2001
+tt, xx = mi_funcion_sen(Vmax, dc, ff2, ph, nn, fs)
+plt.plot(tt, xx, label="500 Hz")
 
-axs[0].set_xlabel("Tiempo [s]")
-axs[0].set_ylabel("Amplitud")
-axs[0].set_title("Señales senoidales con diferentes frecuencias")
-axs[0].legend()
-axs[0].grid()
+tt, xx = mi_funcion_sen(Vmax, dc, ff3, ph, nn, fs)
+plt.plot(tt, xx, label="999 Hz")
 
-# Gráfico de Señales pulso
-# for f in frecuencias:
-#     x_pulso = señal_pulso(amplitud=1, dc=0, ff=f, duracion_pulso=duracion_pulso, t=t)
-#     axs[1].plot(t, x_pulso, label=f"f = {f} Hz")
+tt, xx = mi_funcion_sen(Vmax, dc, ff4, ph, nn, fs)
+plt.plot(tt, xx, label="1001 Hz")
 
-# axs[1].set_xlabel("Tiempo [s]")
-# axs[1].set_ylabel("Amplitud")
-# axs[1].set_title("Señales de pulso con diferentes frecuencias")
-# axs[1].legend()
-# axs[1].grid()
+tt, xx = mi_funcion_sen(Vmax, dc, ff5, ph, nn, fs)
+plt.plot(tt, xx, label="2001 Hz")
 
-plt.tight_layout()
+
+plt.xlabel("Tiempo (s)")
+plt.ylabel("Amplitud")
+plt.grid()
+plt.legend()
 plt.show()
 
 
+"""
+Para una frecuencia de muestreo de 1000Hz:
+    500 Hz es la frecuencia de Nyquist= 1000/2, por lo que
+    cualquier señal con ff>500Hz no se representa correctamente.
+    Los gráficos para f={1,1001,2001} son iguales -> las señales de frecuencia:
+        f=fs+x se ven como si fueran de frecuencia f=x.
+        (Por este motivo los gráficos que corresponden a ff= 1, 1001 y 2001 Hz están superpuestos)
+    De manera análoga, las señales con frecuencia:
+        f=fs-x, se ven como una señal de f=x invertida
+        (Po este motivo, la señal de ff=999 se ve como la señal de ff=1Hz pero espejada/invertida)
+    Por último, la señal de ff=500Hz=frecuencia de Nyquist se ve plana, esto se debe a que la señal tiene solo 2 puntos por ciclo y se "cancelan"
 
+"""
+#%%
+#Otra señal
+x_cuadrada = np.sign(xx)
+plt.plot(tt, x_cuadrada, label="Señal Cuadrada")
+plt.xlabel("Tiempo (s)")
+plt.ylabel("Amplitud")
+plt.grid()
+plt.legend()
+plt.show()
 
-   
+"""
+La señal cuadrada usa los últimos valores en el vector xx (ff=ff5=2001 Hz)
+Debido al aliasing, la representación gráfica equivale a una señal de 1Hz.
+"""
