@@ -195,6 +195,14 @@
     "La señal cuadrada usa los últimos valores en el vector xx (ff=ff5=2001 Hz)\n",
     "Debido al *aliasing*, la representación gráfica equivale a una señal de 1Hz."
    ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "de2de7b5-5cf9-4d49-8cb9-ac1fc19b85e4",
+   "metadata": {},
+   "outputs": [],
+   "source": []
   }
  ],
  "metadata": {
