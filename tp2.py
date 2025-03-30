@@ -8,7 +8,7 @@ Created on Sun Mar 16 23:03:53 2025
 import numpy as np
 import matplotlib.pyplot as plt
 
-Q = 100
+Q = 1
 w0= 1
 # se analiza un intervalo dos décadas antes y después de la frecuencia de corte. (w/100 hasta w0*100)
 w= np.logspace(np.log10(w0/100), np.log10(100*w0), 10000)
@@ -28,7 +28,7 @@ def funcionb(Q, w0):
     return w, Tb
 def faseb(Q,w0):
     w = np.logspace(np.log10(w0/100), np.log10(100*w0), 10000)
-    fb = np.arctan(-w * Q * (1 + 1 / (Q * w0)) / w0)
+    fb = np.arctan(w0 * (1 + 1 / (Q * w0)) / w* Q) 
     return w, fb
 
 

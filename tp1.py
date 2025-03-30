@@ -20,7 +20,7 @@ Ts = 1/fs #Paso de tiempo
 Tiempoint = N * Ts # Inervalo total de tiempo
 
 
-ff = 1 # Hz
+ff = 1.5 # Hz
 Vmax = 1
 ph =0
 nn = N
@@ -35,21 +35,21 @@ tt, xx = mi_funcion_sen(Vmax, dc, ff, ph, nn, fs)
 plt.plot(tt, xx, label="1 Hz")
 #%%
 #otras frecuencias
-ff2=500
-ff3=999
-ff4=1001
-ff5=2001
+ff2=1.5
+# ff3=999
+# ff4=1001
+# ff5=2001
 tt, xx = mi_funcion_sen(Vmax, dc, ff2, ph, nn, fs)
 plt.plot(tt, xx, label="500 Hz")
 
-tt, xx = mi_funcion_sen(Vmax, dc, ff3, ph, nn, fs)
-plt.plot(tt, xx, label="999 Hz")
+# tt, xx = mi_funcion_sen(Vmax, dc, ff3, ph, nn, fs)
+# plt.plot(tt, xx, label="999 Hz")
 
-tt, xx = mi_funcion_sen(Vmax, dc, ff4, ph, nn, fs)
-plt.plot(tt, xx, label="1001 Hz")
+# tt, xx = mi_funcion_sen(Vmax, dc, ff4, ph, nn, fs)
+# plt.plot(tt, xx, label="1001 Hz")
 
-tt, xx = mi_funcion_sen(Vmax, dc, ff5, ph, nn, fs)
-plt.plot(tt, xx, label="2001 Hz")
+# tt, xx = mi_funcion_sen(Vmax, dc, ff5, ph, nn, fs)
+# plt.plot(tt, xx, label="2001 Hz")
 
 
 plt.xlabel("Tiempo (s)")
