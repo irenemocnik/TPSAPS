@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 16 16:31:00 2025
+
+@author: iremo
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sig
@@ -160,51 +167,3 @@ sesgo_w_RECT = np.mean(omega1est_RECT) - w0
 var_w_BH = np.var(omega1est_BH)
 var_w_FT = np.var(omega1est_FT)
 var_w_RECT = np.var(omega1est_RECT)
-
-#%% ZERO padding
-fs=1000
-Npad = 4000
-R = 200
-senal_BH_pad = np.zeros((Npad, R))
-senal_FT_pad = np.zeros((Npad, R))
-Xrpad = np.zeros((Npad, R))
-
-senal_BH_pad[:N, :] = senal_BH #copio la senal original en las primeras N filas e todas las columnas
-senal_FT_pad[:N, :] = senal_FT
-Xrpad[:N, :] = Xr
-
-BH_fft_pad = np.fft.fft(senal_BH_pad, axis=0)
-FT_fft_pad = np.fft.fft(senal_FT_pad, axis=0)
-RECT_fft_pad = np.fft.fft(Xrpad, axis=0)
-
-MAG_BH_pad = 1/N * np.abs(BH_fft_pad)
-MAG_FT_pad = 1/N * np.abs(FT_fft_pad)
-MAG_RECT_pad = 1/N * np.abs(RECT_fft_pad)
-
-dfpad = fs / Npad
-ffpad = np.linspace(0, fs - dfpad, Npad)
-
-omega1est_BH_pad = np.zeros(R)
-omega1est_FT_pad = np.zeros(R)
-omega1est_RECT_pad = np.zeros(R)
-
-for i in range(R):
-    kmax_BH_pad = np.argmax(MAG_BH_pad[:Npad//2, i])
-    kmax_FT_pad = np.argmax(MAG_FT_pad[:Npad//2, i])
-    kmax_RECT_pad = np.argmax(MAG_RECT_pad[:Npad//2, i])
-
-    omega1est_BH_pad[i] = kmax_BH_pad * dfpad
-    omega1est_FT_pad[i] = kmax_FT_pad * dfpad
-    omega1est_RECT_pad[i] = kmax_RECT_pad * dfpad
-
-plt.figure(figsize=(10, 5))
-plt.hist(omega1est_RECT_pad, bins=30, alpha=0.4, label='Rectangular (padded)')
-plt.hist(omega1est_RECT, bins=30, alpha=0.4, label='Rectangular (sin padding)')
-plt.axvline(w0, color='k', linestyle='--', label='Frecuencia real')
-plt.xlabel('Frecuencia estimada [Hz]')
-plt.ylabel('Frecuencia')
-plt.title('Efecto del zero-padding en estimación de ω₁')
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.show()
