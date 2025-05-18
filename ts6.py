@@ -5,16 +5,10 @@ Created on Wed May  7 19:53:42 2025
 @author: iremo
 """
 
-#!/usr/bin/env python3
-# -- coding: utf-8 --
-"""
-Created on Wed Nov  8 19:55:30 2023
-
-@author: mariano
-"""
 
 import numpy as np
 from scipy import signal as sig
+import scipy.io as sio
 
 import matplotlib.pyplot as plt
    
@@ -23,11 +17,10 @@ def vertical_flaten(a):
 
     return a.reshape(a.shape[0],1)
 
-def butter_lowpass_filter(senal, cutoff, fs, order=4):
-    nyq = 0.5 * fs
-    norm_cutoff = cutoff / nyq
-    b, a = sig.butter(order, norm_cutoff, btype='low', analog=False)
-    return sig.filtfilt(b, a, senal)
+
+
+
+
 #%%
 
 ####################################
@@ -60,6 +53,10 @@ ppgvar = np.var(ppgsinruido) #varianza
 N = len(ppgsinruido) 
 nperseg = N // 20      #  largo total/100
 noverlap = nperseg // 2     # solapo 50%
+df = fs_ppg/N
+ff = np.linspace(0, (N-1)*df, N)
+bfrec = ff <= fs_ppg/2
+
 #el sesgo disminuye a medida que se incrementa la longitud del segmento
 #la varianza se reduce cuando se incrementa la cantidad de segmentos
 #el solapamiento reduce la independencia entre los segmentos.
@@ -71,16 +68,34 @@ noverlap = nperseg // 2     # solapo 50%
 
 f_ppg, Pxxsinruido = sig.welch(ppgsinruido, fs=fs_ppg, window='hamming', nperseg=nperseg, noverlap=noverlap, detrend='linear', scaling='density')
 
-Pxxsinruido_normalizado = Pxxsinruido / np.var(ppgsinruido)
+
+ventana=sig.windows.hamming(N)
+Xventana = ppgsinruido * ventana
+Xhamming = np.fft.fft(Xventana)
+periodograma = np.abs(Xhamming)**2 / N
+
+
+area_total = np.sum(Pxxsinruido) 
+
+Pxxsinruido_normalizado = Pxxsinruido / area_total 
+
+suma= np.sum(Pxxsinruido_normalizado) #Verifica q este correctamente normalizado
+
 
 #hamming:reduce lóbulos laterales, mejora contraste).
 #normalizamos dividiendo por la varianza, esto impone una escala estandar.
 
 
-area_acum_sinruido = np.cumsum(Pxxsinruido_normalizado)
-bin95_sinruido = np.where(area_acum_sinruido >= 0.95 * area_acum_sinruido)[0][0]
-f95_sinruido = f_ppg[bin95_sinruido]
-print("Frecuencia 95% (sin ruido):", f95_sinruido)
+
+# quiero obtener el bin donde se acumula el 95% de la energia
+
+area = np.cumsum(Pxxsinruido_normalizado)
+bin95 = np.where(area >= 0.95)[0][0] #busco el primer bin donde la energia acumulada supera el 95%
+freq95 = f_ppg[bin95] 
+
+print(f"Frecuencia donde se acumula el 95% de la energía: {freq95:.1f} Hz")
+
+
 
 
 #%%Corroboramos teo de parseval
@@ -93,55 +108,86 @@ print("EN Tiempo =", energiaTiempo)
 print("EN FRECUENCIA =", energiaFreq)
 print("RESTA =", energiaTiempo - energiaFreq)
 
-#%% Señal ruidosa
 
-f_ruido, Pxx_ruido = sig.welch(ppgruido, fs=fs_ppg, window='hamming', nperseg=nperseg, noverlap=noverlap, detrend='linear', scaling='density')
-Pxx_ruido_norm = Pxx_ruido / np.var(ppgruido)
-#uso el valor del bin95 en freq para cortar el filtro pasabajos
-cutoff = f95_sinruido  # corte definido por la señal sin ruido
+plt.figure()
+plt.plot(f_ppg, 10 * np.log10(Pxxsinruido_normalizado), label='Welch', color='blue')
+plt.plot(ff[bfrec],  10 * np.log10(periodograma[bfrec]), label='Periodograma', color='red')
 
-
-
-area_acum_ruido = np.cumsum(Pxx_ruido_norm)
-bin95_ruido = np.where(area_acum_ruido >= 0.95*area_acum_ruido)[0][0]
-f95_ruido = f_ruido[bin95_ruido]
-print("Frecuencia 95% (con ruido):", f95_ruido)
-
-ppg_filtrada = butter_lowpass_filter(ppgruido, cutoff, fs_ppg)
-
-f_filt, Pxx_filt = sig.welch(ppg_filtrada, fs=fs_ppg, window='hamming',
-                             nperseg=nperseg, noverlap=noverlap, detrend='linear',
-                             scaling='density')
-Pxx_filt_norm = Pxx_filt / np.var(ppg_filtrada)
+plt.xlabel('Frecuencia [Hz]')
+plt.ylabel('Densidad espectral de potencia [V^2/Hz]')
+plt.title('PPG sin ruido')
+plt.legend()
 
 
-area_acum_filt = np.cumsum(Pxx_filt_norm) 
-bin95_filt = np.where(area_acum_filt >= 0.95*area_acum_filt)[0][0]
-f95_filt = f_filt[bin95_filt]      
-print("Frecuencia 95% (filtrada):", f95_filt)
+##################
+## ECG sin ruido
+##################
+
+fs_ecg = 300
+
+ecg_one_lead = np.load('ecg_sin_ruido.npy')
+ecg_one_lead = ecg_one_lead.ravel()
+
+N_ecg = len(ecg_one_lead)
+nperseg_ecg = N_ecg // 20
+noverlap_ecg = nperseg_ecg // 2
+
+f_ecg, Pxx_ecg = sig.welch(ecg_one_lead, fs=fs_ecg, window='hamming',
+                           nperseg=nperseg_ecg, noverlap=noverlap_ecg,
+                           detrend='linear', scaling='density')
+
+area_total_ecg = np.sum(Pxx_ecg)
+Pxx_ecg_normalizado = Pxx_ecg / area_total_ecg
+suma_ecg = np.sum(Pxx_ecg_normalizado)  # Para verificar la normalización
+
+area_ecg = np.cumsum(Pxx_ecg_normalizado)
+bin95_ecg = np.where(area_ecg >= 0.95)[0][0]
+freq95_ecg = f_ecg[bin95_ecg]
+
+print(f"[ECG] Frecuencia donde se acumula el 95% de la energía: {freq95_ecg:.1f} Hz")
+
+
+plt.figure()
+plt.plot(f_ecg, 10 * np.log10(Pxx_ecg), label='Welch', color='blue')
+plt.xlabel('Frecuencia [Hz]')
+plt.ylabel('Densidad espectral de potencia [V^2/Hz]')
+plt.title("PSD - ECG")
+plt.legend()
 
 #%%
 
-t = np.arange(len(ppgruido)) / fs_ppg
+####################
+# Lectura de audio #
+####################
+
+# Cargar el archivo CSV como un array de NumPy
+fs_audio, wav_data = sio.wavfile.read('la cucaracha.wav')
+# fs_audio, wav_data = sio.wavfile.read('prueba psd.wav')
+# fs_audio, wav_data = sio.wavfile.read('silbido.wav')
+wav_data = wav_data.ravel()
+
+
+N_audio = len(wav_data)
+nperseg_audio = N_audio // 20
+noverlap_audio = nperseg_audio // 2
+
+f_audio, Pxx_audio = sig.welch(wav_data, fs=fs_audio, window='hamming',
+                               nperseg=nperseg_audio, noverlap=noverlap_audio,
+                               detrend='linear', scaling='density')
+
+area_total_audio = np.sum(Pxx_audio)
+Pxx_audio_normalizado = Pxx_audio / area_total_audio
+suma_audio = np.sum(Pxx_audio_normalizado)
+
+area_audio = np.cumsum(Pxx_audio_normalizado)
+bin95_audio = np.where(area_audio >= 0.95)[0][0]
+freq95_audio = f_audio[bin95_audio]
+
+print(f"[Audio] Frecuencia donde se acumula el 95% de la energía: {freq95_audio:.1f} Hz")
+
 plt.figure()
-plt.plot(t, ppgruido, label='Original con ruido', alpha=0.5)
-plt.plot(t, ppg_filtrada, label='Filtrada (Butterworth)', linewidth=2)
-plt.title('Señal PPG: original vs filtrada')
-plt.xlabel('Tiempo [s]')
-plt.ylabel('Amplitud')
-plt.legend()
+plt.plot(f_audio, 10 * np.log10(Pxx_audio), label='Welch', color='blue')
+plt.title("PSD - Audio")
+plt.xlabel("Frecuencia (Hz)")
+plt.ylabel("Densidad espectral (V²/Hz)")
 plt.grid()
-
-
-
- #%% señal original despues de aplicarle un filtro.
-plt.figure()
-plt.plot(f_ppg, 10 * np.log10(Pxxsinruido_normalizado), label='Sin ruido')
-plt.plot(f_ruido, 10 * np.log10(Pxx_ruido_norm), label='Con ruido')
-plt.plot(f_filt, 10 * np.log10(Pxx_filt_norm), label='Filtrada')
-plt.title('PSD comparadas')
-plt.xlabel('Frecuencia [Hz]')
-plt.ylabel('Densidad espectral [dB]')
-plt.legend()
-plt.grid()
-
