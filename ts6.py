@@ -136,13 +136,22 @@ f_ecg, Pxx_ecg = sig.welch(ecg_one_lead, fs=fs_ecg, window='hamming',
                            nperseg=nperseg_ecg, noverlap=noverlap_ecg,
                            detrend='linear', scaling='density')
 
-area_total_ecg = np.sum(Pxx_ecg)
-Pxx_ecg_normalizado = Pxx_ecg / area_total_ecg
-suma_ecg = np.sum(Pxx_ecg_normalizado)  # Para verificar la normalización
+mitadpsd=Pxx_ecg[:N//2].ravel()
+ffmitad=f_ecg[:N//2]
 
-area_ecg = np.cumsum(Pxx_ecg_normalizado)
-bin95_ecg = np.where(area_ecg >= 0.95)[0][0]
-freq95_ecg = f_ecg[bin95_ecg]
+energia_total = np.sum(mitadpsd)
+energia_acumulada = np.cumsum(mitadpsd) / energia_total
+indice_95 = np.where(energia_acumulada >= 0.95)[0][0]
+freq95_ecg = ffmitad[indice_95]
+indice_98 = np.where(energia_acumulada >= 0.98)[0][0]
+freq98_ecg = ffmitad[indice_98]
+
+
+
+
+# area_ecg = np.cumsum(Pxx_ecg) / area_total_ecg
+# bin95_ecg = np.where(area_ecg >= 0.95)[0][0]
+# freq95_ecg = f_ecg[bin95_ecg]
 
 print(f"[ECG] Frecuencia donde se acumula el 95% de la energía: {freq95_ecg:.1f} Hz")
 
