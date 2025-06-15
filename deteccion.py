@@ -1,208 +1,117 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed May 28 18:15:12 2025
-
 @author: iremo
 """
-
 
 import numpy as np
 from scipy import signal as sig
 from scipy.signal import correlate, find_peaks
 import matplotlib.pyplot as plt
 import scipy.io as sio
+from scipy.signal import sosfiltfilt, filtfilt
 
-#%%diseño filtro
+#%% Diseño del filtro
 
-aprox_name = 'butter'
-# aprox_name = 'cheby1'
-# aprox_name = 'cheby2'
-# aprox_name = 'ellip'
-fs = 1000
-nyq_frec = fs/2
-fpass= np.array([1.0,35.0]) #banda de paso wp
-ripple = 1#dB osea debería modificar la plantilla si uso filtfilt
-fstop= ([.1,50.]) #comienzo banda de atenuación, hasta 50 (interferencia de la red eléctrica)
-attenuation =40#dB
-
-#para una comparacio njusta, cambio los parametros para el filt filt
-# s = 1000
-# nyq_frec = fs/2
-# fpass= np.array([1.0,35.0]) #banda de paso wp
-# ripple = 0.5#dB osea debería modificar la plantilla si uso filtfilt
-# fstop= ([.1,50.]) #comienzo banda de atenuación, hasta 50 (interferencia de la red eléctrica)
-# attenuation =20#dB
+fs_ecg = 1000
+nyq_frec = fs_ecg / 2
 
 
-
-#esperamos una rta lineal
-#esperamos retardo cte, porque introduce un retardo de fase
-#sabemos por fourier que si pasamos por un sistema LTI, si tenemos una demora cte, se introduce un producto por una exponencial, entonces se suma una fase cte
-
-
-mi_sos = sig.iirdesign(fpass, fstop, ripple, attenuation, ftype=aprox_name, output='sos',fs=fs)
-# las columnas 3,4y5 son los coeficiente a0,a1,a2 y de la 0 a la 2 son los coef b
-
-#%%plantilla de diseño, para analizarlo
-npoints = 1000 #asi evalua equiespaciado
-
-#para obtner mayor resuloción antesd e la bandad de paso, necesito un muestreo log => a freqz le puedo pasar un vector.
-w_rad = np.append(np.logspace(-2,0.8,250), np.logspace(0.9,1.6,250))
-w_rad = np.append(w_rad, np.linspace(40, nyq_frec, 500, endpoint=True) )/nyq_frec * np.pi
-
-w, hh = sig.sosfreqz(mi_sos, worN=w_rad) #worN le puedo pasar un entero o un vector 
-##hh pertenece a complejos, w son los valores en los que calcula el vector de complejos
-fase = np.angle(hh)
-modulo = np.abs(hh)
-group = -np.diff(fase) / np.diff(w)
-
-
-
-plt.figure()
-plt.plot(w/np.pi*nyq_frec, np.angle(hh), label='mi_sos')
-plt.title('Plantilla de diseño')
-plt.xlabel('Frecuencia normalizada a Nyq [#]')
-plt.ylabel('Amplitud [dB]')
-
-plt.figure()
-plt.plot(w/np.pi*nyq_frec, 20*np.log10(np.abs(hh)+1e-15), label='mi_sos')
-plt.title('Plantilla de diseño')
-plt.xlabel('Frecuencia normalizada a Nyq [#]')
-plt.ylabel('Amplitud [dB]')
-# filtro anterior, como referencia
-# w, mag, _ = my_digital_filter.bode(npoints)
-# plt.plot(w/w_nyq, mag, label=my_digital_filter_desc)
-
-plt.figure()
-plt.plot(w/np.pi*nyq_frec, 20*np.log10(np.abs(hh)+1e-15), label='mi_sos')
-gd = -np.diff(np.unwrap(np.angle(hh))) / np.diff(w)
-plt.plot(w[1:]/np.pi*nyq_frec, gd)
-plt.title('Retardo de grupo')
-plt.xlabel('Frecuencia normalizada a Nyq [#]')
-plt.ylabel('Retardo de grupo [muestras]')
-
-
-
-#%%señal ECG
 mat_struct = sio.loadmat('./ECG_TP4.mat')
-ecg_one_lead =(mat_struct['ecg_lead']).flatten()
-N = len(ecg_one_lead)
+ecg = mat_struct['ecg_lead'].flatten()
+hb1 = mat_struct['heartbeat_pattern1'].flatten()
+hb2 = mat_struct['heartbeat_pattern2'].flatten()
+qrs = mat_struct['qrs_pattern1'].flatten()
 
-#filtro ECG, con funcion sosfiltfilt
-ECG_filtfilt= sig.sosfiltfilt(mi_sos, ecg_one_lead)
+ecg = (ecg - np.mean(ecg)) / np.std(ecg)
 
-plt.figure()
-plt.plot(ecg_one_lead,label='ECG original')
-plt.plot(ECG_filtfilt, label='ECG filtrado')
-plt.title('ECG antes y después del filtrado')
-plt.legend()
-plt.show()
+# ws1 = 0.1 # Hz
+# wp1 = 1.0 # Hz
+# wp2 = 35 # Hz
+# ws2 = 50 # Hz
+# bp_sos_butter = sig.iirdesign(wp=np.array([wp1, wp2]) / nyq_frec, ws=np.array([ws1, ws2]) / nyq_frec, gpass=0.5, gstop=40., analog=False, ftype='butter', output='sos')
+# ECG_f_butt  = sosfiltfilt(bp_sos_butter, ecg.flatten())
 
-#si estuvieramos con una señal real que sale de un adc, usariamos un filtro NO bidireccional
-#ademas de la rta en frecuecnia, nos interesa la rta temporal
-#poenmos a prueba como funciona en la banda de paso y la banda de rechazo
-#buscamos una region dentro de la banda de pas: buscamos una region limpia dentro de la banda de paso. 
-#para probar la banda derechazo superior, vemos señales de alta frec en el regimen temporal (con mucha interferencia)
-#para probar la badnda de rechazo inferior, buscamos fluctuaciones lentas
 
-#ECG_filt = sig.sosfilt(mi_sos, ecg_one_lead) 
-ECG_filt = sig.sosfiltfilt(mi_sos, ecg_one_lead)  #neutraliza demora y dist de fase
-#con freqz podemos agregar que en vez de devolver abs devuelva ANGLE, eso
+# hb1 =( hb1 - np.mean(hb1)) / np.std(hb1)
+# hb2 =( hb2 - np.mean(hb2)) / np.std(hb2)
+qrs =( qrs - np.mean(qrs)) / np.std(qrs)
 
-#si sigo con filt, puedo mirar a ojo la diferencia entre dos picos (parece aprox 68) y establezco esta demora como una cte, es aproximado pero es suficiente
+#un vector de tiempo para cada patron
+t_hb1 = np.arange(len(hb1)) / fs_ecg
+t_hb2 = np.arange(len(hb2)) / fs_ecg
+t_qrs = np.arange(len(qrs)) / fs_ecg
 
-#anula distorsion de fase, anula la demora
-demora = 0 
-#demora = 68
+t_ecg = np.arange(len(ecg)) / fs_ecg
 
-#se generan oscilaciones por la forma de la rta al impulso del filtro
-#se podria aislar este efecto usanod una respuesta menos abrupt
 
-fig_dpi = 150
-cant_muestras =len(ecg_one_lead)
-ECG_f_win = ECG_filt
-fig_sz_x = 10
-fig_sz_y = 10
-
-regs_interes = ( 
-        np.array([5, 5.2]) *60*fs, # minutos a muestras
-        np.array([12, 12.4]) *60*fs, # minutos a muestras
-        np.array([15, 15.2]) *60*fs, # minutos a muestras
-        )
-
-for ii in regs_interes:
-    
-    # intervalo limitado de 0 a cant_muestras
-    zoom_region = np.arange(np.max([0, ii[0]]), np.min([cant_muestras, ii[1]]), dtype='uint')
-    
-    plt.figure(figsize=(fig_sz_x, fig_sz_y), dpi= fig_dpi, facecolor='w', edgecolor='k')
-    plt.plot(zoom_region, ecg_one_lead[zoom_region], label='ECG', linewidth=2)
-    #plt.plot(zoom_region, ECG_f_butt[zoom_region], label='Butter')
-    plt.plot(zoom_region, ECG_f_win[zoom_region + demora], label='Win')
-    
-    plt.title('ECG filtering example from ' + str(ii[0]) + ' to ' + str(ii[1]) )
-    plt.ylabel('Adimensional')
-    plt.xlabel('Muestras (#)')
-    
-    axes_hdl = plt.gca()
-    axes_hdl.legend()
-    axes_hdl.set_yticks(())
-            
-    plt.show()
-regs_interes = ( 
-        [4000, 5500], # muestras
-        [10e3, 11e3], # muestras
-        )
-
-for ii in regs_interes:
-    
-    # intervalo limitado de 0 a cant_muestras
-    zoom_region = np.arange(np.max([0, ii[0]]), np.min([cant_muestras, ii[1]]), dtype='uint')
-    
-    plt.figure(figsize=(fig_sz_x, fig_sz_y), dpi= fig_dpi, facecolor='w', edgecolor='k')
-    plt.plot(zoom_region, ecg_one_lead[zoom_region], label='ECG', linewidth=2)
-    #plt.plot(zoom_region, ECG_f_butt[zoom_region], label='Butter')
-    plt.plot(zoom_region, ECG_f_win[zoom_region + demora], label='Win')
-    
-    plt.title('ECG filtering example from ' + str(ii[0]) + ' to ' + str(ii[1]) )
-    plt.ylabel('Adimensional')
-    plt.xlabel('Muestras (#)')
-    
-    axes_hdl = plt.gca()
-    axes_hdl.legend()
-    axes_hdl.set_yticks(())
-            
-    plt.show()
-    
-    
-template = ECG_filt[0:120]
-template = (template - np.mean(template)) / np.std(template)
-# Normalizamos la señal
-ECG_filt_norm = (ECG_filt - np.mean(ECG_filt)) / np.std(ECG_filt)
-
-# Correlación
-correlacion = correlate(ECG_filt_norm, template, mode='full')
-
-peaks, _ = find_peaks(correlacion, height=np.max(correlacion)*0.5, distance=fs*0.6)
-
-# Graficamos la detección
-plt.figure(figsize=(10, 5))
-plt.plot(ECG_filt, label='ECG filtrado')
-plt.plot(peaks, ECG_filt[peaks], 'x', markersize=8, markeredgewidth=1.5, color='red', label='Picos detectados')
-plt.title('Detección de latidos por correlación')
-plt.xlabel('Muestras (#)')
-plt.ylabel('Amplitud')
-plt.legend()
+plt.figure(figsize=(12, 4))
+plt.plot(t_qrs, qrs)
+plt.title('Patrón QRS usado para detección')
+plt.xlabel('Tiempo [s]')
 plt.grid(True)
 plt.show()
 
-print(f"Cantidad de picos detectados: {len(peaks)}")
+plt.figure(figsize=(12, 4))
+plt.plot(t_ecg[:3000], ecg[:3000])
+plt.title('Primeros 3 segundos del ECG')
+plt.xlabel('Tiempo [s]')
+plt.grid(True)
+plt.show()
+#%% Detección por correlación
 
-    
-# Intervalos RR en segundos
-RR_intervals = np.diff(peaks) / fs
-template = (template - np.mean(template)) / np.std(template)
+qrs_matched = qrs[::-1]
+corr = np.convolve(ecg, qrs_matched, mode='same')
+corr = (corr - np.mean(corr)) / np.std(corr)
 
-HR_instant = 60 / RR_intervals
-HR_prom = np.mean(HR_instant)
-print(f"Frecuencia cardíaca promedio: {HR_prom:.2f} BPM")
+peaks, _ = find_peaks(corr, height = 1.0, distance=fs_ecg*0.3)
+
+plt.figure(figsize=(12, 4))
+plt.plot(t_ecg, corr, label='Correlación (Matched Filter)')
+plt.plot(t_ecg[peaks], corr[peaks], 'rx', label='Picos detectados')
+plt.legend()
+plt.grid(True)
+plt.title("Señal de correlación y detección de latidos")
+plt.show()
+
+plt.figure(figsize=(12, 4))
+plt.plot(t_ecg, ecg, label='ECG')
+plt.plot(t_ecg[peaks], ecg[peaks], 'rx', label='Picos detectados')
+plt.legend()
+plt.grid(True)
+plt.title("Latidos detectados sobre el ECG")
+plt.show()
+
+
+#fraccion de detecciones verdaderas
+VP = 0 #Verdaderos positivos (latidos reales detectados)
+FP = 0 # deteccion sin latido
+FN = 0 # falsos negativos (latidos reales que no fueron detectados)
+
+qrsVerdaderos = mat_struct['qrs_detections'].flatten()
+tolerancia = 0.05  # segundos
+ventana = int(tolerancia * fs_ecg)
+
+
+latidos_usados = np.zeros(len(qrsVerdaderos), dtype=bool)
+
+for pico in peaks:
+    acierto = False
+    for i, real in enumerate(qrsVerdaderos):
+        if not latidos_usados[i] and abs(pico - real) <= ventana:
+            VP = VP + 1
+            latidos_usados[i] = True  # Marcamos ese latido como usado
+            acierto = True
+            break  # Ya está, no sigas buscando
+    if not acierto:
+        FP = FP + 1
+        
+FN = np.sum(latidos_usados == False)
+
+
+fracTotal = VP / (VP + FN)
+fracDetectados = VP / (VP + FP)
+
+print(f"Latidos detectados correctamente: {VP}")
+print(f"Latidos detectados que no lo eran): {FP}")
+print(f"Latidos verdaderos no detectados: {FN}")
+print(f"Fracción de latidos detectados (sensibilidad): {fracTotal:.2f}")
+print(f"Fraccion de latidos detectados que eran verdaderos latidos (Valor Predictivo Positivo (PPV)): {fracDetectados:.2f}")
